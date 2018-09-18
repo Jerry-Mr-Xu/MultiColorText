@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="MultiColorTextView_fill_orientation">
+        <item>横向自左到右</item>
+        <item>纵向自下到上</item>
+    </string-array>
+</resources>

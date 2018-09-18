@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="MultiColorTextView">
+        <attr name="android:text" />
+        <attr name="android:textSize" />
+        <attr name="background_color" format="color" />
+        <attr name="foreground_color" format="color" />
+        <attr name="shape_type" format="enum">
+            <enum name="rect" value="0" />
+            <enum name="circle" value="1" />
+            <enum name="round_rect" value="2" />
+        </attr>
+        <attr name="fill_orientation" format="enum">
+            <enum name="horizontal" value="0" />
+            <enum name="vertical" value="1" />
+        </attr>
+        <attr name="fill_progress" format="fraction" />
+    </declare-styleable>
+</resources>
