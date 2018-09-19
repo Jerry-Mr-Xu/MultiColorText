@@ -8,7 +8,7 @@ import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
 
-import com.jerry.multicolortext.FillOrientationSpinnerAdapter.FillOrientationType;
+import com.jerry.multicolortext.TypeSpinnerAdapter.TypeBean;
 
 
 import butterknife.BindView;
@@ -26,12 +26,15 @@ public class MainActivity extends AppCompatActivity {
     MultiColorTextView mctvShow;
     @BindView(R.id.spinner_fill_orientation)
     Spinner spinnerFillOrientation;
+    @BindView(R.id.spinner_shape_type)
+    Spinner spinnerShapeType;
     @BindView(R.id.sb_fill_progress_controller)
     SeekBar sbFillProgressController;
     @BindView(R.id.tv_fill_progress_percent)
     TextView tvFillProgressPercent;
 
-    FillOrientationType[] fillOrientationTypeArray;
+    TypeBean[] orientationTypeArray;
+    TypeBean[] shapeTypeArray;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,12 +47,18 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initData() {
-        fillOrientationTypeArray = new FillOrientationType[2];
-        fillOrientationTypeArray[0] = new FillOrientationType("横向自左到右", MultiColorTextView.FILL_ORIENTATION_HOR);
-        fillOrientationTypeArray[1] = new FillOrientationType("纵向自下到上", MultiColorTextView.FILL_ORIENTATION_VER);
+        orientationTypeArray = new TypeBean[2];
+        orientationTypeArray[0] = new TypeBean("横向自左到右", MultiColorTextView.FILL_ORIENTATION_HOR);
+        orientationTypeArray[1] = new TypeBean("纵向自下到上", MultiColorTextView.FILL_ORIENTATION_VER);
+        TypeSpinnerAdapter orientationAdapter = new TypeSpinnerAdapter(this, orientationTypeArray);
+        spinnerFillOrientation.setAdapter(orientationAdapter);
 
-        FillOrientationSpinnerAdapter adapter = new FillOrientationSpinnerAdapter(this, fillOrientationTypeArray);
-        spinnerFillOrientation.setAdapter(adapter);
+        shapeTypeArray = new TypeBean[3];
+        shapeTypeArray[0] = new TypeBean("矩形", MultiColorTextView.SHAPE_TYPE_RECT);
+        shapeTypeArray[1] = new TypeBean("圆形", MultiColorTextView.SHAPE_TYPE_CIRCLE);
+        shapeTypeArray[2] = new TypeBean("圆角矩形", MultiColorTextView.SHAPE_TYPE_ROUND_RECT);
+        TypeSpinnerAdapter shapeAdapter = new TypeSpinnerAdapter(this, shapeTypeArray);
+        spinnerShapeType.setAdapter(shapeAdapter);
 
         mctvShow.setFillProgress(sbFillProgressController.getProgress() * 1.0f / sbFillProgressController.getMax());
     }
@@ -58,14 +67,27 @@ public class MainActivity extends AppCompatActivity {
         spinnerFillOrientation.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                if (position >= 0 && position < fillOrientationTypeArray.length) {
-                    mctvShow.setFillOrientation(fillOrientationTypeArray[position].getTypeId());
+                if (position >= 0 && position < orientationTypeArray.length) {
+                    mctvShow.setFillOrientation(orientationTypeArray[position].getTypeId());
                 }
             }
 
             @Override
             public void onNothingSelected(AdapterView<?> parent) {
                 mctvShow.setFillOrientation(MultiColorTextView.FILL_ORIENTATION_DEFAULT);
+            }
+        });
+        spinnerShapeType.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (position >= 0 && position < shapeTypeArray.length) {
+                    mctvShow.setShapeType(shapeTypeArray[position].getTypeId());
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+                mctvShow.setShapeType(MultiColorTextView.SHAPE_TYPE_DEFAULT);
             }
         });
         sbFillProgressController.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {

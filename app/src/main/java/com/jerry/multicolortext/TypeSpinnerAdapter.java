@@ -10,30 +10,30 @@ import android.widget.TextView;
 import java.io.Serializable;
 
 /**
- * 填充方向选择框的适配器
+ * 类型选择框适配器
  *
  * @author xujierui
  * @date 2018/9/19
  */
 
-public class FillOrientationSpinnerAdapter extends BaseAdapter {
+public class TypeSpinnerAdapter extends BaseAdapter {
     private Context context;
-    private FillOrientationType[] fillOrientationTypeArray;
+    private TypeBean[] typeBeanArray;
 
-    FillOrientationSpinnerAdapter(Context context, FillOrientationType[] fillOrientationTypeArray) {
+    TypeSpinnerAdapter(Context context, TypeBean[] typeBeanArray) {
         this.context = context;
-        this.fillOrientationTypeArray = fillOrientationTypeArray;
+        this.typeBeanArray = typeBeanArray;
     }
 
     @Override
     public int getCount() {
-        return fillOrientationTypeArray.length;
+        return typeBeanArray.length;
     }
 
     @Override
     public Object getItem(int position) {
-        if (position >= 0 && position < fillOrientationTypeArray.length) {
-            return fillOrientationTypeArray[position];
+        if (position >= 0 && position < typeBeanArray.length) {
+            return typeBeanArray[position];
         } else {
             return null;
         }
@@ -49,15 +49,14 @@ public class FillOrientationSpinnerAdapter extends BaseAdapter {
         ViewHolder viewHolder;
 
         if (convertView == null) {
-            convertView = LayoutInflater.from(context).inflate(R.layout.item_fill_orientation, parent, false);
+            convertView = LayoutInflater.from(context).inflate(R.layout.item_spinner_simple, parent, false);
             viewHolder = new ViewHolder(convertView);
             convertView.setTag(viewHolder);
-        } else {
-            viewHolder = (ViewHolder) convertView.getTag();
         }
 
-        if (position >= 0 && position < fillOrientationTypeArray.length) {
-            viewHolder.getTvName().setText(fillOrientationTypeArray[position].getTypeName());
+        viewHolder = (ViewHolder) convertView.getTag();
+        if (position >= 0 && position < typeBeanArray.length) {
+            viewHolder.getTvName().setText(typeBeanArray[position].getTypeName());
         }
         return convertView;
     }
@@ -78,12 +77,11 @@ public class FillOrientationSpinnerAdapter extends BaseAdapter {
         }
     }
 
-    public static class FillOrientationType implements Serializable {
+    public static class TypeBean implements Serializable {
         private String typeName;
         private int typeId;
 
-        public FillOrientationType(String typeName, int typeId) {
-
+        public TypeBean(String typeName, int typeId) {
             this.typeName = typeName;
             this.typeId = typeId;
         }
@@ -106,7 +104,7 @@ public class FillOrientationSpinnerAdapter extends BaseAdapter {
 
         @Override
         public String toString() {
-            return "FillOrientationType{" +
+            return "TypeBean{" +
                     "typeName='" + typeName + '\'' +
                     ", typeId=" + typeId +
                     '}';

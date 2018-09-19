@@ -302,7 +302,7 @@ public class MultiColorTextView extends View {
 
     public void setShapeType(int shapeType) {
         this.shapeType = shapeType;
-        invalidate();
+        requestLayout();
     }
 
     public int getFillOrientation() {
