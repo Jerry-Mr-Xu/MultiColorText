@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">MultiColorText</string>
+    <string name="percent">%s%%</string>
 </resources>

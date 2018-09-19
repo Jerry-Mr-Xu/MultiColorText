@@ -8,13 +8,13 @@
     tools:context="com.jerry.multicolortext.MainActivity">
 
     <com.jerry.multicolortext.MultiColorTextView
+        android:id="@+id/mctv_show"
         android:layout_width="wrap_content"
-        android:layout_height="100dp"
-        android:text="我等级考试"
-        android:textSize="30sp"
+        android:layout_height="wrap_content"
+        android:text="我"
+        android:textSize="80sp"
         app:background_color="#00f"
         app:fill_orientation="vertical"
-        app:fill_progress="55%"
         app:foreground_color="#0f0"
         app:layout_constraintBottom_toBottomOf="@+id/sb_fill_progress_controller"
         app:layout_constraintLeft_toLeftOf="parent"
@@ -23,14 +23,20 @@
         app:shape_type="rect" />
 
     <Spinner
+        android:id="@+id/spinner_fill_orientation"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginBottom="18dp"
-        android:entries="@array/MultiColorTextView_fill_orientation"
         app:layout_constraintBottom_toTopOf="@+id/tv_fill_progress_title"
-        app:layout_constraintLeft_toLeftOf="parent"
-        tools:layout_editor_absoluteX="0dp"
-        tools:layout_editor_absoluteY="0dp" />
+        app:layout_constraintLeft_toLeftOf="parent" />
+
+    <Spinner
+        android:id="@+id/spinner_shape_type"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintBottom_toBottomOf="@+id/spinner_fill_orientation"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/spinner_fill_orientation" />
 
     <TextView
         android:id="@+id/tv_fill_progress_title"
@@ -51,13 +57,15 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginBottom="18dp"
+        android:max="100"
+        android:progress="50"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toRightOf="@+id/tv_fill_progress_title"
-        app:layout_constraintRight_toRightOf="@+id/tv_fill_progress_show" />
+        app:layout_constraintRight_toRightOf="@+id/tv_fill_progress_percent" />
 
     <TextView
-        android:id="@+id/tv_fill_progress_show"
-        android:layout_width="wrap_content"
+        android:id="@+id/tv_fill_progress_percent"
+        android:layout_width="50dp"
         android:layout_height="wrap_content"
         android:layout_marginRight="8dp"
         android:gravity="center"

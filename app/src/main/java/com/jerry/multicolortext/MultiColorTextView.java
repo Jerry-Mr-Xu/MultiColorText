@@ -22,8 +22,8 @@ import android.view.View;
 
 public class MultiColorTextView extends View {
     private static final String TAG = "MultiColorTextView";
-    private static final int SHAPE_TYPE_RECT = 0, SHAPE_TYPE_CIRCLE = 1, SHAPE_TYPE_ROUND_RECT = 2;
-    private static final int FILL_ORIENTATION_HOR = 0, FILL_ORIENTATION_VER = 1;
+    public static final int SHAPE_TYPE_DEFAULT = 0, SHAPE_TYPE_RECT = 1, SHAPE_TYPE_CIRCLE = 2, SHAPE_TYPE_ROUND_RECT = 3;
+    public static final int FILL_ORIENTATION_DEFAULT = 0, FILL_ORIENTATION_HOR = 1, FILL_ORIENTATION_VER = 2;
 
     /**
      * 背景画笔和前景画笔
@@ -107,9 +107,9 @@ public class MultiColorTextView extends View {
         textSize = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 20, context.getResources().getDisplayMetrics());
         bgColor = ContextCompat.getColor(context, R.color.default_bg_color);
         fgColor = ContextCompat.getColor(context, R.color.default_fill_color);
-        shapeType = SHAPE_TYPE_RECT;
+        shapeType = SHAPE_TYPE_DEFAULT;
         fillProgress = 0;
-        fillOrientation = FILL_ORIENTATION_VER;
+        fillOrientation = FILL_ORIENTATION_DEFAULT;
         textRect = new Rect();
         filledRect = new Rect();
         unfilledRect = new Rect();
