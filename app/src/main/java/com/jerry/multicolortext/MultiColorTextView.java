@@ -80,6 +80,11 @@ public class MultiColorTextView extends View {
     @FloatRange(from = 0, to = 1)
     private float fillProgress;
 
+    /**
+     * 圆角半径（当形状是圆角矩形时{@link MultiColorTextView#SHAPE_TYPE_ROUND_RECT}）
+     */
+    private float roundCornerRadius;
+
     public MultiColorTextView(Context context) {
         super(context);
         init(context, null);
@@ -110,6 +115,7 @@ public class MultiColorTextView extends View {
         shapeType = SHAPE_TYPE_DEFAULT;
         fillProgress = 0;
         fillOrientation = FILL_ORIENTATION_DEFAULT;
+        roundCornerRadius = 0;
         textRect = new Rect();
         filledRect = new Rect();
         unfilledRect = new Rect();
@@ -144,31 +150,69 @@ public class MultiColorTextView extends View {
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         textRect.setEmpty();
+        roundCornerRadius = 0;
 
         int widthMode = MeasureSpec.getMode(widthMeasureSpec);
         int heightMode = MeasureSpec.getMode(heightMeasureSpec);
 
         int resultWidth = MeasureSpec.getSize(widthMeasureSpec), resultHeight = MeasureSpec.getSize(heightMeasureSpec);
 
-        if (widthMode == MeasureSpec.AT_MOST) {
-            // 如果宽度是wrap_content则获取文字宽度为最终宽度
-            if (textRect.isEmpty()) {
-                bgPaint.getTextBounds(textContent, 0, textContent.length(), textRect);
+        bgPaint.getTextBounds(textContent, 0, textContent.length(), textRect);
+        switch (shapeType) {
+            case SHAPE_TYPE_CIRCLE: {
+                int maxLength = 0;
+                // 如果是圆形
+                if (widthMode == MeasureSpec.AT_MOST && heightMode == MeasureSpec.AT_MOST) {
+                    // 如果宽高都是wrap_content，则取文字对角线为直径
+                    maxLength = (int) Math.ceil(Math.sqrt(textRect.width() * textRect.width() + textRect.height() * textRect.height()));
+                    resultWidth = resultHeight = maxLength;
+                } else if (widthMode == MeasureSpec.AT_MOST && heightMode == MeasureSpec.EXACTLY) {
+                    // 如果宽度是wrap_content高度是确定数值，则以高度为准
+                    maxLength = resultHeight;
+                    resultWidth = resultHeight = maxLength;
+                } else if (widthMode == MeasureSpec.EXACTLY && heightMode == MeasureSpec.AT_MOST) {
+                    // 如果宽度是确定数值高度是wrap_content，则以宽度为准
+                    maxLength = resultWidth;
+                    resultWidth = resultHeight = maxLength;
+                } else {
+                    // 如果宽高都是确定数值则不做改变
+                }
+                break;
             }
-            resultWidth = textRect.width();
-        }
-        if (heightMode == MeasureSpec.AT_MOST) {
-            // 如果高度是wrap_content则获取文字高度为最终高度
-            if (textRect.isEmpty()) {
-                bgPaint.getTextBounds(textContent, 0, textContent.length(), textRect);
+            case SHAPE_TYPE_ROUND_RECT: {
+                // 如果是圆角矩形
+                if (widthMode == MeasureSpec.AT_MOST && heightMode == MeasureSpec.AT_MOST) {
+                    // 如果宽高都是wrap_content，则取文字宽高
+                    roundCornerRadius = Math.min(textRect.width(), textRect.height()) / 5.0f;
+                    resultWidth = (int) (Math.ceil(roundCornerRadius + textRect.width()));
+                    resultHeight = (int) (Math.ceil(roundCornerRadius + textRect.height()));
+                } else if (widthMode == MeasureSpec.AT_MOST && heightMode == MeasureSpec.EXACTLY) {
+                    // 如果宽度是wrap_content高度是确定数值，则以宽度为文字宽度
+                    roundCornerRadius = Math.min(textRect.width(), resultHeight) / 5.0f;
+                    resultWidth = (int) (Math.ceil(roundCornerRadius + textRect.width()));
+                } else if (widthMode == MeasureSpec.EXACTLY && heightMode == MeasureSpec.AT_MOST) {
+                    // 如果宽度是确定数值高度是wrap_content，则以高度为文字高度
+                    roundCornerRadius = Math.min(resultWidth, textRect.height()) / 5.0f;
+                    resultHeight = (int) (Math.ceil(roundCornerRadius + textRect.height()));
+                } else {
+                    // 如果宽高都是确定数值则以这两个的最小值为准
+                    roundCornerRadius = Math.min(resultWidth, resultHeight) / 5.0f;
+                }
+                break;
             }
-            resultHeight = textRect.height();
-        }
-
-        if (shapeType == SHAPE_TYPE_CIRCLE) {
-            // 如果是圆形则取宽高的最大值
-            int maxLength = Math.max(resultWidth, resultHeight);
-            resultWidth = resultHeight = maxLength;
+            case SHAPE_TYPE_RECT:
+            default: {
+                // 如果是矩形
+                if (widthMode == MeasureSpec.AT_MOST) {
+                    // 如果宽度是wrap_content则获取文字宽度为最终宽度
+                    resultWidth = textRect.width();
+                }
+                if (heightMode == MeasureSpec.AT_MOST) {
+                    // 如果高度是wrap_content则获取文字高度为最终高度
+                    resultHeight = textRect.height();
+                }
+                break;
+            }
         }
 
         viewRect.set(0, 0, resultWidth, resultHeight);
@@ -248,8 +292,7 @@ public class MultiColorTextView extends View {
                 break;
             }
             case SHAPE_TYPE_ROUND_RECT: {
-                float radius = Math.min(viewRect.width(), viewRect.height()) / 5.0f;
-                canvas.drawRoundRect(new RectF(viewRect), radius, radius, bgPaint);
+                canvas.drawRoundRect(new RectF(viewRect), roundCornerRadius, roundCornerRadius, bgPaint);
                 break;
             }
             case SHAPE_TYPE_RECT:
@@ -303,6 +346,7 @@ public class MultiColorTextView extends View {
     public void setShapeType(int shapeType) {
         this.shapeType = shapeType;
         requestLayout();
+        invalidate();
     }
 
     public int getFillOrientation() {
