@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.support.annotation.FloatRange;
@@ -66,14 +67,20 @@ public class MultiColorTextView extends View {
      * 文字显示区域
      */
     private Rect textRect;
+
+    /**
+     * 背景区域
+     */
+    private Path backgroundPath;
     /**
      * 填充区域
      */
-    private Rect filledRect;
+    private Path filledAreaPath;
     /**
      * 未填充区域
      */
-    private Rect unfilledRect;
+    private Path unfilledAreaPath;
+
     /**
      * 填充进度(0-1.0)
      */
@@ -117,8 +124,9 @@ public class MultiColorTextView extends View {
         fillOrientation = FILL_ORIENTATION_DEFAULT;
         roundCornerRadius = 0;
         textRect = new Rect();
-        filledRect = new Rect();
-        unfilledRect = new Rect();
+        backgroundPath = new Path();
+        filledAreaPath = new Path();
+        unfilledAreaPath = new Path();
         viewRect = new Rect();
 
         // 获取xml中设置的属性
@@ -161,7 +169,7 @@ public class MultiColorTextView extends View {
         bgPaint.getTextBounds(textContent, 0, textContent.length(), textRect);
         switch (shapeType) {
             case SHAPE_TYPE_CIRCLE: {
-                int maxLength = 0;
+                int maxLength;
                 // 如果是圆形
                 if (widthMode == MeasureSpec.AT_MOST && heightMode == MeasureSpec.AT_MOST) {
                     // 如果宽高都是wrap_content，则取文字对角线为直径
@@ -224,50 +232,77 @@ public class MultiColorTextView extends View {
         setMeasuredDimension(resultWidth, resultHeight);
     }
 
+    /**
+     * 简要说一下绘画思路：
+     * 1. 先得到背景Path、填充和非填充Path
+     * 2. 分别将背景Path与填充Path和非填充Path相交最终得到的就是内容区域Path
+     *
+     * @param canvas 画布
+     */
     @Override
     protected void onDraw(Canvas canvas) {
-        filledRect.setEmpty();
-        unfilledRect.setEmpty();
+        backgroundPath.reset();
+        filledAreaPath.reset();
+        unfilledAreaPath.reset();
 
+        switch (shapeType) {
+            case SHAPE_TYPE_ROUND_RECT: {
+                backgroundPath.addRoundRect(viewRect.left, viewRect.top, viewRect.right, viewRect.bottom, roundCornerRadius, roundCornerRadius, Path.Direction.CW);
+                break;
+            }
+            case SHAPE_TYPE_CIRCLE: {
+                backgroundPath.addCircle(viewRect.centerX(), viewRect.centerY(), Math.min(viewRect.width(), viewRect.height()) / 2.0f, Path.Direction.CW);
+                break;
+            }
+            case SHAPE_TYPE_RECT:
+            default: {
+                backgroundPath.addRect(0, 0, viewRect.width(), viewRect.height(), Path.Direction.CW);
+                break;
+            }
+        }
         switch (fillOrientation) {
             case FILL_ORIENTATION_HOR: {
                 // 从左边开始填充
-                filledRect.set(0, 0, Math.min((int) (viewRect.width() * fillProgress), viewRect.width()), viewRect.height());
-                unfilledRect.set(filledRect.right, 0, viewRect.width(), viewRect.height());
+                int progressLineX = Math.min((int) (viewRect.width() * fillProgress), viewRect.width());
+                filledAreaPath.addRect(0, 0, progressLineX, viewRect.height(), Path.Direction.CW);
+                unfilledAreaPath.addRect(progressLineX, 0, viewRect.width(), viewRect.height(), Path.Direction.CW);
                 break;
             }
             case FILL_ORIENTATION_VER: {
                 // 从下边开始填充
-                unfilledRect.set(0, 0, viewRect.width(), Math.min((int) (viewRect.height() * (1 - fillProgress)), viewRect.height()));
-                filledRect.set(0, unfilledRect.bottom, viewRect.width(), viewRect.height());
+                int progressLineY = Math.min((int) (viewRect.height() * (1 - fillProgress)), viewRect.height());
+                unfilledAreaPath.addRect(0, 0, viewRect.width(), progressLineY, Path.Direction.CW);
+                filledAreaPath.addRect(0, progressLineY, viewRect.width(), viewRect.height(), Path.Direction.CW);
                 break;
             }
             default: {
                 // 异常情况默认不填充
-                unfilledRect.set(0, 0, viewRect.width(), viewRect.height());
+                unfilledAreaPath.addRect(0, 0, viewRect.width(), viewRect.height(), Path.Direction.CW);
                 break;
             }
         }
+        filledAreaPath.op(backgroundPath, Path.Op.INTERSECT);
+        unfilledAreaPath.op(backgroundPath, Path.Op.INTERSECT);
 
         // 填充区域颜色相反
         bgPaint.setColor(fgColor);
         fgPaint.setColor(bgColor);
-        drawContentInRect(canvas, filledRect);
+        drawContentInRect(canvas, filledAreaPath);
 
         bgPaint.setColor(bgColor);
         fgPaint.setColor(fgColor);
-        drawContentInRect(canvas, unfilledRect);
+        drawContentInRect(canvas, unfilledAreaPath);
     }
 
     /**
      * 在给定矩形区域绘制内容
      *
      * @param canvas      画布
-     * @param contentRect 内容区域
+     * @param contentArea 内容区域
      */
-    private void drawContentInRect(Canvas canvas, Rect contentRect) {
+    private void drawContentInRect(Canvas canvas, Path contentArea) {
         canvas.save();
-        canvas.clipRect(contentRect);
+        canvas.clipPath(contentArea);
         drawBackground(canvas);
         drawForeground(canvas);
         canvas.restore();
@@ -302,7 +337,7 @@ public class MultiColorTextView extends View {
                 break;
             }
             case SHAPE_TYPE_ROUND_RECT: {
-                canvas.drawRoundRect(new RectF(viewRect), roundCornerRadius, roundCornerRadius, bgPaint);
+                canvas.drawRoundRect(viewRect.left, viewRect.top, viewRect.right, viewRect.bottom, roundCornerRadius, roundCornerRadius, bgPaint);
                 break;
             }
             case SHAPE_TYPE_RECT:
