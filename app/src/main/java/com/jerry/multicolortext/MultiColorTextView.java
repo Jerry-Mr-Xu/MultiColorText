@@ -154,6 +154,7 @@ public class MultiColorTextView extends View {
 
         int widthMode = MeasureSpec.getMode(widthMeasureSpec);
         int heightMode = MeasureSpec.getMode(heightMeasureSpec);
+        int paddingLeft = getPaddingLeft(), paddingTop = getPaddingTop(), paddingRight = getPaddingRight(), paddingBottom = getPaddingBottom();
 
         int resultWidth = MeasureSpec.getSize(widthMeasureSpec), resultHeight = MeasureSpec.getSize(heightMeasureSpec);
 
@@ -164,7 +165,8 @@ public class MultiColorTextView extends View {
                 // 如果是圆形
                 if (widthMode == MeasureSpec.AT_MOST && heightMode == MeasureSpec.AT_MOST) {
                     // 如果宽高都是wrap_content，则取文字对角线为直径
-                    maxLength = (int) Math.ceil(Math.sqrt(textRect.width() * textRect.width() + textRect.height() * textRect.height()));
+                    int realWidth = textRect.width() + paddingLeft + paddingRight, realHeight = textRect.height() + paddingTop + paddingBottom;
+                    maxLength = (int) Math.ceil(Math.sqrt(realWidth * realWidth + realHeight * realHeight));
                     resultWidth = resultHeight = maxLength;
                 } else if (widthMode == MeasureSpec.AT_MOST && heightMode == MeasureSpec.EXACTLY) {
                     // 如果宽度是wrap_content高度是确定数值，则以高度为准
@@ -183,19 +185,22 @@ public class MultiColorTextView extends View {
                 // 如果是圆角矩形
                 if (widthMode == MeasureSpec.AT_MOST && heightMode == MeasureSpec.AT_MOST) {
                     // 如果宽高都是wrap_content，则取文字宽高
-                    roundCornerRadius = Math.min(textRect.width(), textRect.height()) / 5.0f;
-                    resultWidth = (int) (Math.ceil(roundCornerRadius + textRect.width()));
-                    resultHeight = (int) (Math.ceil(roundCornerRadius + textRect.height()));
+                    int realWidth = textRect.width() + paddingLeft + paddingRight, realHeight = textRect.height() + paddingTop + paddingBottom;
+                    roundCornerRadius = Math.min(realWidth, realHeight) / 5.0f;
+                    resultWidth = (int) (Math.ceil(roundCornerRadius + realWidth));
+                    resultHeight = (int) (Math.ceil(roundCornerRadius + realHeight));
                 } else if (widthMode == MeasureSpec.AT_MOST && heightMode == MeasureSpec.EXACTLY) {
                     // 如果宽度是wrap_content高度是确定数值，则以宽度为文字宽度
-                    roundCornerRadius = Math.min(textRect.width(), resultHeight) / 5.0f;
-                    resultWidth = (int) (Math.ceil(roundCornerRadius + textRect.width()));
+                    int realWidth = textRect.width() + paddingLeft + paddingRight;
+                    roundCornerRadius = Math.min(realWidth, resultHeight) / 5.0f;
+                    resultWidth = (int) (Math.ceil(roundCornerRadius + realWidth));
                 } else if (widthMode == MeasureSpec.EXACTLY && heightMode == MeasureSpec.AT_MOST) {
                     // 如果宽度是确定数值高度是wrap_content，则以高度为文字高度
-                    roundCornerRadius = Math.min(resultWidth, textRect.height()) / 5.0f;
-                    resultHeight = (int) (Math.ceil(roundCornerRadius + textRect.height()));
+                    int realHeight = textRect.height() + paddingTop + paddingBottom;
+                    roundCornerRadius = Math.min(resultWidth, realHeight) / 5.0f;
+                    resultHeight = (int) (Math.ceil(roundCornerRadius + realHeight));
                 } else {
-                    // 如果宽高都是确定数值则以这两个的最小值为准
+                    // 如果宽高都是确定数值则不做改变
                     roundCornerRadius = Math.min(resultWidth, resultHeight) / 5.0f;
                 }
                 break;
@@ -205,11 +210,11 @@ public class MultiColorTextView extends View {
                 // 如果是矩形
                 if (widthMode == MeasureSpec.AT_MOST) {
                     // 如果宽度是wrap_content则获取文字宽度为最终宽度
-                    resultWidth = textRect.width();
+                    resultWidth = textRect.width() + paddingLeft + paddingRight;
                 }
                 if (heightMode == MeasureSpec.AT_MOST) {
                     // 如果高度是wrap_content则获取文字高度为最终高度
-                    resultHeight = textRect.height();
+                    resultHeight = textRect.height() + paddingTop + paddingBottom;
                 }
                 break;
             }
@@ -277,7 +282,12 @@ public class MultiColorTextView extends View {
         Paint.FontMetrics fontMetrics = fgPaint.getFontMetrics();
         float textHeight = fontMetrics.bottom - fontMetrics.top;
         float textWidth = fgPaint.measureText(textContent, 0, textContent.length());
-        canvas.drawText(textContent, viewRect.centerX() - textWidth / 2, viewRect.centerY() + textHeight / 2 - fontMetrics.bottom, fgPaint);
+
+        // 文字要去除Padding居中
+        Rect contentRect = new Rect(viewRect);
+        contentRect.set(viewRect.left + getPaddingLeft(), viewRect.top + getPaddingTop(), viewRect.right - getPaddingRight(), viewRect.bottom - getPaddingBottom());
+
+        canvas.drawText(textContent, contentRect.centerX() - textWidth / 2, contentRect.centerY() + textHeight / 2 - fontMetrics.bottom, fgPaint);
     }
 
     /**
