@@ -314,15 +314,14 @@ public class MultiColorTextView extends View {
      * @param canvas 画布
      */
     private void drawForeground(Canvas canvas) {
-        Paint.FontMetrics fontMetrics = fgPaint.getFontMetrics();
-        float textHeight = fontMetrics.bottom - fontMetrics.top;
-        float textWidth = fgPaint.measureText(textContent, 0, textContent.length());
+        float textHeight = textRect.height();
+        float textWidth = textRect.width();
 
         // 文字要去除Padding居中
         Rect contentRect = new Rect(viewRect);
         contentRect.set(viewRect.left + getPaddingLeft(), viewRect.top + getPaddingTop(), viewRect.right - getPaddingRight(), viewRect.bottom - getPaddingBottom());
 
-        canvas.drawText(textContent, contentRect.centerX() - textWidth / 2, contentRect.centerY() + textHeight / 2 - fontMetrics.bottom, fgPaint);
+        canvas.drawText(textContent, contentRect.centerX() - textWidth / 2 - textRect.left, contentRect.centerY() + textHeight / 2 - textRect.bottom, fgPaint);
     }
 
     /**
