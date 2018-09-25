@@ -10,10 +10,11 @@
             <enum name="circle" value="2" />
             <enum name="round_rect" value="3" />
         </attr>
-        <attr name="fill_orientation" format="enum">
-            <enum name="horizontal" value="1" />
-            <enum name="vertical" value="2" />
+        <attr name="divider_type" format="enum">
+            <enum name="line" value="1" />
+            <enum name="bessel" value="2" />
         </attr>
         <attr name="fill_progress" format="fraction" />
+        <attr name="divider_angle" format="integer" />
     </declare-styleable>
 </resources>

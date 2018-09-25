@@ -6,7 +6,6 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Rect;
-import android.graphics.RectF;
 import android.support.annotation.FloatRange;
 import android.support.annotation.Nullable;
 import android.support.v4.content.ContextCompat;
@@ -23,8 +22,9 @@ import android.view.View;
 
 public class MultiColorTextView extends View {
     private static final String TAG = "MultiColorTextView";
+    private static final int DIVIDER_ZERO_ANGLE = 0, DIVIDER_QUARTER_ANGLE = 90, DIVIDER_HALF_ANGLE = 180, DIVIDER_THREE_QUARTER_ANGLE = 270, DIVIDER_ENTIRE_ANGLE = 360;
     public static final int SHAPE_TYPE_DEFAULT = 0, SHAPE_TYPE_RECT = 1, SHAPE_TYPE_CIRCLE = 2, SHAPE_TYPE_ROUND_RECT = 3;
-    public static final int FILL_ORIENTATION_DEFAULT = 0, FILL_ORIENTATION_HOR = 1, FILL_ORIENTATION_VER = 2;
+    public static final int DIVIDER_TYPE_DEFAULT = 0, DIVIDER_TYPE_LINE = 1, DIVIDER_TYPE_BESSEL = 2;
 
     /**
      * 背景画笔和前景画笔
@@ -55,9 +55,15 @@ public class MultiColorTextView extends View {
      */
     private int shapeType;
     /**
-     * 填充方向
+     * 分割线类型
+     * {@link MultiColorTextView#DIVIDER_TYPE_LINE} 直线
+     * {@link MultiColorTextView#DIVIDER_TYPE_BESSEL} 贝塞尔曲线
      */
-    private int fillOrientation;
+    private int dividerType;
+    /**
+     * 分割线角度
+     */
+    private int dividerAngle;
 
     /**
      * 控件区域
@@ -121,7 +127,8 @@ public class MultiColorTextView extends View {
         fgColor = ContextCompat.getColor(context, R.color.default_fill_color);
         shapeType = SHAPE_TYPE_DEFAULT;
         fillProgress = 0;
-        fillOrientation = FILL_ORIENTATION_DEFAULT;
+        dividerType = DIVIDER_TYPE_DEFAULT;
+        dividerAngle = 0;
         roundCornerRadius = 0;
         textRect = new Rect();
         backgroundPath = new Path();
@@ -138,7 +145,8 @@ public class MultiColorTextView extends View {
             fgColor = typedArray.getInt(R.styleable.MultiColorTextView_foreground_color, fgColor);
             shapeType = typedArray.getInt(R.styleable.MultiColorTextView_shape_type, SHAPE_TYPE_RECT);
             fillProgress = typedArray.getFraction(R.styleable.MultiColorTextView_fill_progress, 1, 1, fillProgress);
-            fillOrientation = typedArray.getInt(R.styleable.MultiColorTextView_fill_orientation, fillOrientation);
+            dividerType = typedArray.getInt(R.styleable.MultiColorTextView_divider_type, dividerType);
+            dividerAngle = typedArray.getInt(R.styleable.MultiColorTextView_divider_angle, dividerAngle);
 
             typedArray.recycle();
         }
@@ -241,9 +249,32 @@ public class MultiColorTextView extends View {
      */
     @Override
     protected void onDraw(Canvas canvas) {
-        backgroundPath.reset();
-        filledAreaPath.reset();
-        unfilledAreaPath.reset();
+        generateBackgroundPath();
+        generateFilledAndUnfilledAreaPath();
+
+        // 将填充和非填充区域分别与背景区域做相交操作
+        filledAreaPath.op(backgroundPath, Path.Op.INTERSECT);
+        unfilledAreaPath.op(backgroundPath, Path.Op.INTERSECT);
+
+        // 填充区域颜色相反
+        bgPaint.setColor(fgColor);
+        fgPaint.setColor(bgColor);
+        drawContentInRect(canvas, filledAreaPath);
+
+        bgPaint.setColor(bgColor);
+        fgPaint.setColor(fgColor);
+        drawContentInRect(canvas, unfilledAreaPath);
+    }
+
+    /**
+     * 生成背景轮廓Path
+     */
+    private void generateBackgroundPath() {
+        if (backgroundPath == null) {
+            backgroundPath = new Path();
+        } else {
+            backgroundPath.reset();
+        }
 
         switch (shapeType) {
             case SHAPE_TYPE_ROUND_RECT: {
@@ -260,38 +291,67 @@ public class MultiColorTextView extends View {
                 break;
             }
         }
-        switch (fillOrientation) {
-            case FILL_ORIENTATION_HOR: {
-                // 从左边开始填充
-                int progressLineX = Math.min((int) (viewRect.width() * fillProgress), viewRect.width());
-                filledAreaPath.addRect(0, 0, progressLineX, viewRect.height(), Path.Direction.CW);
-                unfilledAreaPath.addRect(progressLineX, 0, viewRect.width(), viewRect.height(), Path.Direction.CW);
-                break;
+    }
+
+    /**
+     * 分别生成填充和非填充区域轮廓Path
+     */
+    private void generateFilledAndUnfilledAreaPath() {
+        if (filledAreaPath == null) {
+            filledAreaPath = new Path();
+        } else {
+            filledAreaPath.reset();
+        }
+        if (unfilledAreaPath == null) {
+            unfilledAreaPath = new Path();
+        } else {
+            unfilledAreaPath.reset();
+        }
+
+        // 代表各个顶点（其中Start和End点是分割线与矩形的交点）
+        final int START_POINT = 0, LEFT_TOP_POINT = 1, RIGHT_TOP_POINT = 2, RIGHT_BOTTOM_POINT = 3, LEFT_BOTTOM_POINT = 4, END_POINT = -1;
+        float startPointX, startPointY;
+        float endPointX, endPointY;
+        final float left = 0, top = 0, right = viewRect.width(), bottom = viewRect.height();
+        int[] filledAreaPointOrder = null, unfilledAreaPointOrder = null;
+        if (Math.abs(dividerAngle) % DIVIDER_ENTIRE_ANGLE == DIVIDER_ZERO_ANGLE) {
+            // 角度为0度即自左到右
+            startPointX = endPointX = viewRect.width() * fillProgress;
+            startPointY = 0;
+            endPointY = viewRect.height();
+        } else if (Math.abs(dividerAngle) % DIVIDER_ENTIRE_ANGLE == DIVIDER_HALF_ANGLE) {
+            // 角度为180度即自右向左
+            startPointX = endPointX = viewRect.width() * (1 - fillProgress);
+            startPointY = viewRect.height();
+            endPointY = 0;
+        } else if (Math.abs(dividerAngle) % DIVIDER_ENTIRE_ANGLE == DIVIDER_QUARTER_ANGLE) {
+            // 角度为90度即自上而下
+            startPointX = 0;
+            startPointY = endPointY = viewRect.height() * fillProgress;
+            endPointX = viewRect.width();
+        } else if (Math.abs(dividerAngle) % DIVIDER_ENTIRE_ANGLE == DIVIDER_THREE_QUARTER_ANGLE) {
+            // 角度为270度即自下而上
+            startPointX = viewRect.width();
+            startPointY = endPointY = viewRect.height() * (1 - fillProgress);
+            endPointX = 0;
+        } else {
+            // 其余非特殊角度
+            // TODO 需要求得直线的表达式
+            startPointX = startPointY = 0;
+            endPointX = right;
+            endPointY = bottom;
+        }
+
+        // TODO 这里需要确定各个点的顺序
+
+        switch (dividerType) {
+            case DIVIDER_TYPE_BESSEL: {
             }
-            case FILL_ORIENTATION_VER: {
-                // 从下边开始填充
-                int progressLineY = Math.min((int) (viewRect.height() * (1 - fillProgress)), viewRect.height());
-                unfilledAreaPath.addRect(0, 0, viewRect.width(), progressLineY, Path.Direction.CW);
-                filledAreaPath.addRect(0, progressLineY, viewRect.width(), viewRect.height(), Path.Direction.CW);
-                break;
-            }
+            case DIVIDER_TYPE_LINE:
             default: {
-                // 异常情况默认不填充
-                unfilledAreaPath.addRect(0, 0, viewRect.width(), viewRect.height(), Path.Direction.CW);
                 break;
             }
         }
-        filledAreaPath.op(backgroundPath, Path.Op.INTERSECT);
-        unfilledAreaPath.op(backgroundPath, Path.Op.INTERSECT);
-
-        // 填充区域颜色相反
-        bgPaint.setColor(fgColor);
-        fgPaint.setColor(bgColor);
-        drawContentInRect(canvas, filledAreaPath);
-
-        bgPaint.setColor(bgColor);
-        fgPaint.setColor(fgColor);
-        drawContentInRect(canvas, unfilledAreaPath);
     }
 
     /**
@@ -301,6 +361,9 @@ public class MultiColorTextView extends View {
      * @param contentArea 内容区域
      */
     private void drawContentInRect(Canvas canvas, Path contentArea) {
+        if (contentArea.isEmpty()) {
+            return;
+        }
         canvas.save();
         canvas.clipPath(contentArea);
         drawBackground(canvas);
@@ -393,12 +456,12 @@ public class MultiColorTextView extends View {
         invalidate();
     }
 
-    public int getFillOrientation() {
-        return fillOrientation;
+    public int getDividerType() {
+        return dividerType;
     }
 
-    public void setFillOrientation(int fillOrientation) {
-        this.fillOrientation = fillOrientation;
+    public void setDividerType(int dividerType) {
+        this.dividerType = dividerType;
         invalidate();
     }
 

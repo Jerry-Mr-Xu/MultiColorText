@@ -24,8 +24,8 @@ public class MainActivity extends AppCompatActivity {
 
     @BindView(R.id.mctv_show)
     MultiColorTextView mctvShow;
-    @BindView(R.id.spinner_fill_orientation)
-    Spinner spinnerFillOrientation;
+    @BindView(R.id.spinner_divider_type)
+    Spinner spinnerDividerType;
     @BindView(R.id.spinner_shape_type)
     Spinner spinnerShapeType;
     @BindView(R.id.sb_fill_progress_controller)
@@ -33,7 +33,7 @@ public class MainActivity extends AppCompatActivity {
     @BindView(R.id.tv_fill_progress_percent)
     TextView tvFillProgressPercent;
 
-    TypeBean[] orientationTypeArray;
+    TypeBean[] dividerTypeArray;
     TypeBean[] shapeTypeArray;
 
     @Override
@@ -47,11 +47,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initData() {
-        orientationTypeArray = new TypeBean[2];
-        orientationTypeArray[0] = new TypeBean("横向自左到右", MultiColorTextView.FILL_ORIENTATION_HOR);
-        orientationTypeArray[1] = new TypeBean("纵向自下到上", MultiColorTextView.FILL_ORIENTATION_VER);
-        TypeSpinnerAdapter orientationAdapter = new TypeSpinnerAdapter(this, orientationTypeArray);
-        spinnerFillOrientation.setAdapter(orientationAdapter);
+        dividerTypeArray = new TypeBean[2];
+        dividerTypeArray[0] = new TypeBean("直线", MultiColorTextView.DIVIDER_TYPE_LINE);
+        dividerTypeArray[1] = new TypeBean("贝塞尔曲线", MultiColorTextView.DIVIDER_TYPE_BESSEL);
+        TypeSpinnerAdapter orientationAdapter = new TypeSpinnerAdapter(this, dividerTypeArray);
+        spinnerDividerType.setAdapter(orientationAdapter);
 
         shapeTypeArray = new TypeBean[3];
         shapeTypeArray[0] = new TypeBean("矩形", MultiColorTextView.SHAPE_TYPE_RECT);
@@ -64,17 +64,17 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initListener() {
-        spinnerFillOrientation.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+        spinnerDividerType.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                if (position >= 0 && position < orientationTypeArray.length) {
-                    mctvShow.setFillOrientation(orientationTypeArray[position].getTypeId());
+                if (position >= 0 && position < dividerTypeArray.length) {
+                    mctvShow.setDividerType(dividerTypeArray[position].getTypeId());
                 }
             }
 
             @Override
             public void onNothingSelected(AdapterView<?> parent) {
-                mctvShow.setFillOrientation(MultiColorTextView.FILL_ORIENTATION_DEFAULT);
+                mctvShow.setDividerType(MultiColorTextView.DIVIDER_TYPE_DEFAULT);
             }
         });
         spinnerShapeType.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
