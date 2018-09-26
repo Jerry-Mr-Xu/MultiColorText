@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.PaintFlagsDrawFilter;
 import android.graphics.Path;
 import android.graphics.Rect;
 import android.support.annotation.FloatRange;
@@ -12,6 +13,9 @@ import android.support.v4.content.ContextCompat;
 import android.util.AttributeSet;
 import android.util.TypedValue;
 import android.view.View;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 多颜色文字（例如上半部分红色，下半部分黄色）
@@ -22,6 +26,14 @@ import android.view.View;
 
 public class MultiColorTextView extends View {
     private static final String TAG = "MultiColorTextView";
+    /**
+     * 代表各个顶点（其中Start和End点是分割线与矩形的交点）
+     */
+    private static final int START_POINT = -1, LEFT_TOP_POINT = 0, RIGHT_TOP_POINT = 1, RIGHT_BOTTOM_POINT = 2, LEFT_BOTTOM_POINT = 3, END_POINT = -2;
+    /**
+     * 矩形的边数
+     */
+    private static final int RECT_LINE_COUNT = 4;
     private static final int DIVIDER_ZERO_ANGLE = 0, DIVIDER_QUARTER_ANGLE = 90, DIVIDER_HALF_ANGLE = 180, DIVIDER_THREE_QUARTER_ANGLE = 270, DIVIDER_ENTIRE_ANGLE = 360;
     public static final int SHAPE_TYPE_DEFAULT = 0, SHAPE_TYPE_RECT = 1, SHAPE_TYPE_CIRCLE = 2, SHAPE_TYPE_ROUND_RECT = 3;
     public static final int DIVIDER_TYPE_DEFAULT = 0, DIVIDER_TYPE_LINE = 1, DIVIDER_TYPE_BESSEL = 2;
@@ -308,50 +320,249 @@ public class MultiColorTextView extends View {
             unfilledAreaPath.reset();
         }
 
-        // 代表各个顶点（其中Start和End点是分割线与矩形的交点）
-        final int START_POINT = 0, LEFT_TOP_POINT = 1, RIGHT_TOP_POINT = 2, RIGHT_BOTTOM_POINT = 3, LEFT_BOTTOM_POINT = 4, END_POINT = -1;
-        float startPointX, startPointY;
-        float endPointX, endPointY;
-        final float left = 0, top = 0, right = viewRect.width(), bottom = viewRect.height();
-        int[] filledAreaPointOrder = null, unfilledAreaPointOrder = null;
-        if (Math.abs(dividerAngle) % DIVIDER_ENTIRE_ANGLE == DIVIDER_ZERO_ANGLE) {
-            // 角度为0度即自左到右
-            startPointX = endPointX = viewRect.width() * fillProgress;
-            startPointY = 0;
-            endPointY = viewRect.height();
-        } else if (Math.abs(dividerAngle) % DIVIDER_ENTIRE_ANGLE == DIVIDER_HALF_ANGLE) {
-            // 角度为180度即自右向左
-            startPointX = endPointX = viewRect.width() * (1 - fillProgress);
-            startPointY = viewRect.height();
-            endPointY = 0;
-        } else if (Math.abs(dividerAngle) % DIVIDER_ENTIRE_ANGLE == DIVIDER_QUARTER_ANGLE) {
-            // 角度为90度即自上而下
-            startPointX = 0;
-            startPointY = endPointY = viewRect.height() * fillProgress;
-            endPointX = viewRect.width();
-        } else if (Math.abs(dividerAngle) % DIVIDER_ENTIRE_ANGLE == DIVIDER_THREE_QUARTER_ANGLE) {
-            // 角度为270度即自下而上
-            startPointX = viewRect.width();
-            startPointY = endPointY = viewRect.height() * (1 - fillProgress);
-            endPointX = 0;
-        } else {
-            // 其余非特殊角度
-            // TODO 需要求得直线的表达式
-            startPointX = startPointY = 0;
-            endPointX = right;
-            endPointY = bottom;
-        }
+        float calAngle = dividerAngle;
 
-        // TODO 这里需要确定各个点的顺序
+        while (calAngle < 0) {
+            calAngle += DIVIDER_ENTIRE_ANGLE;
+        }
+        calAngle %= DIVIDER_ENTIRE_ANGLE;
+
+        float[] pointArray = getStartAndEndPoint(calAngle);
+
+        // 确定各个点的顺序
+        ArrayList<Integer> pointOrderList = getPointOrder(pointArray);
+
+        // 按顺序填上点
+        Path path = filledAreaPath;
+        for (int i = 0, size = pointOrderList.size(); i < size; i++) {
+            switch (pointOrderList.get(i)) {
+                case START_POINT: {
+                    path = filledAreaPath;
+                    path.moveTo(pointArray[0], pointArray[1]);
+                    break;
+                }
+                case LEFT_TOP_POINT: {
+                    path.lineTo(0, 0);
+                    break;
+                }
+                case RIGHT_TOP_POINT: {
+                    path.lineTo(viewRect.width(), 0);
+                    break;
+                }
+                case RIGHT_BOTTOM_POINT: {
+                    path.lineTo(viewRect.width(), viewRect.height());
+                    break;
+                }
+                case LEFT_BOTTOM_POINT: {
+                    path.lineTo(0, viewRect.height());
+                    break;
+                }
+                case END_POINT: {
+                    path.lineTo(pointArray[2], pointArray[3]);
+                    path = unfilledAreaPath;
+                    path.moveTo(pointArray[2], pointArray[3]);
+                }
+                default: {
+                    break;
+                }
+            }
+        }
+        unfilledAreaPath.lineTo(pointArray[0], pointArray[1]);
 
         switch (dividerType) {
             case DIVIDER_TYPE_BESSEL: {
+                break;
             }
             case DIVIDER_TYPE_LINE:
             default: {
+                filledAreaPath.close();
+                unfilledAreaPath.close();
                 break;
             }
         }
+    }
+
+    /**
+     * 获取顶点顺序
+     *
+     * @param pointArray 分割线和矩形的两个交点
+     */
+    private ArrayList<Integer> getPointOrder(float[] pointArray) {
+        ArrayList<Integer> pointOrderList = new ArrayList<>(6);
+        float startPointWeight = getPointWeight(pointArray[0], pointArray[1]);
+        float endPointWeight = getPointWeight(pointArray[2], pointArray[3]);
+
+        if (endPointWeight < startPointWeight) {
+            endPointWeight += RECT_LINE_COUNT;
+        }
+        pointOrderList.add(START_POINT);
+        for (int i = (int) Math.ceil(startPointWeight); i < startPointWeight + RECT_LINE_COUNT; i++) {
+            if (i == startPointWeight) {
+                continue;
+            }
+            if (i - endPointWeight >= 0 && i - endPointWeight < 1) {
+                pointOrderList.add(END_POINT);
+            }
+            if (i != endPointWeight) {
+                pointOrderList.add(i % RECT_LINE_COUNT);
+            }
+        }
+        return pointOrderList;
+    }
+
+    /**
+     * 获取点的权重
+     *
+     * @param x 点的X坐标
+     * @param y 点的Y坐标
+     * @return 权重
+     */
+    private float getPointWeight(float x, float y) {
+        if (y == 0) {
+            return LEFT_TOP_POINT + x / viewRect.width();
+        }
+        if (x == viewRect.width()) {
+            return RIGHT_TOP_POINT + y / viewRect.height();
+        }
+        if (y == viewRect.height()) {
+            return RIGHT_BOTTOM_POINT + (1 - x / viewRect.width());
+        }
+        if (x == 0) {
+            return LEFT_BOTTOM_POINT + (1 - y / viewRect.height());
+        }
+        return 0;
+    }
+
+    /**
+     * 获取分割线和矩形的交点
+     *
+     * @param calAngle 分割线角度
+     * @return 两个交点
+     */
+    private float[] getStartAndEndPoint(float calAngle) {
+        final float right = viewRect.width(), bottom = viewRect.height();
+        float startPointX = 0, startPointY = 0, endPointX = right, endPointY = bottom;
+
+        if (calAngle == DIVIDER_ZERO_ANGLE) {
+            // 角度为0度即自左到右
+            startPointX = endPointX = right * fillProgress;
+            startPointY = bottom;
+            endPointY = 0;
+        } else if (calAngle == DIVIDER_HALF_ANGLE) {
+            // 角度为180度即自右向左
+            startPointX = endPointX = right * (1 - fillProgress);
+            startPointY = 0;
+            endPointY = bottom;
+        } else if (calAngle == DIVIDER_QUARTER_ANGLE) {
+            // 角度为90度即自上而下
+            startPointX = 0;
+            startPointY = endPointY = bottom * fillProgress;
+            endPointX = right;
+        } else if (calAngle == DIVIDER_THREE_QUARTER_ANGLE) {
+            // 角度为270度即自下而上
+            startPointX = right;
+            startPointY = endPointY = bottom * (1 - fillProgress);
+            endPointX = 0;
+        } else {
+            final float tanAngle = (float) Math.tan(calAngle);
+            // 四个可能是交点的点
+            float[] pointArray = new float[8];
+            pointArray[0] = 0;
+            pointArray[2] = right;
+            pointArray[5] = 0;
+            pointArray[7] = bottom;
+            if (calAngle > DIVIDER_ZERO_ANGLE && calAngle < DIVIDER_QUARTER_ANGLE) {
+                // 角度大于0小于90度
+                pointArray[1] = (right / tanAngle + bottom) * fillProgress;
+                pointArray[3] = (fillProgress - 1) / tanAngle * right + fillProgress * bottom;
+                pointArray[4] = right * fillProgress + tanAngle * bottom * fillProgress;
+                pointArray[6] = right * fillProgress + (fillProgress - 1) * tanAngle * bottom;
+
+                if (pointArray[1] >= 0 && pointArray[1] <= bottom) {
+                    startPointX = pointArray[0];
+                    startPointY = pointArray[1];
+                } else if (pointArray[6] >= 0 && pointArray[6] <= right) {
+                    startPointX = pointArray[6];
+                    startPointY = pointArray[7];
+                }
+
+                if (pointArray[3] >= 0 && pointArray[3] <= bottom) {
+                    endPointX = pointArray[2];
+                    endPointY = pointArray[3];
+                } else if (pointArray[4] >= 0 && pointArray[4] <= right) {
+                    endPointX = pointArray[4];
+                    endPointY = pointArray[5];
+                }
+            } else if (calAngle > DIVIDER_QUARTER_ANGLE && calAngle < DIVIDER_HALF_ANGLE) {
+                // 角度大于90小于180度
+                pointArray[1] = (1 - fillProgress) / tanAngle * right + fillProgress * bottom;
+                pointArray[3] = -fillProgress * tanAngle * right + fillProgress * bottom;
+                pointArray[4] = (1 - fillProgress) * right + fillProgress * tanAngle * bottom;
+                pointArray[6] = (1 - fillProgress) * right + (fillProgress - 1) * tanAngle * bottom;
+
+                if (pointArray[1] >= 0 && pointArray[1] <= bottom) {
+                    startPointX = pointArray[0];
+                    startPointY = pointArray[1];
+                } else if (pointArray[4] >= 0 && pointArray[4] <= right) {
+                    startPointX = pointArray[4];
+                    startPointY = pointArray[5];
+                }
+
+                if (pointArray[3] >= 0 && pointArray[3] <= bottom) {
+                    endPointX = pointArray[2];
+                    endPointY = pointArray[3];
+                } else if (pointArray[6] >= 0 && pointArray[6] <= right) {
+                    endPointX = pointArray[6];
+                    endPointY = pointArray[7];
+                }
+            } else if (calAngle > DIVIDER_HALF_ANGLE && calAngle < DIVIDER_THREE_QUARTER_ANGLE) {
+                // 角度大于180小于270度
+                pointArray[1] = (1 - fillProgress) * (right / tanAngle + bottom);
+                pointArray[3] = -fillProgress / tanAngle * right + (1 - fillProgress) * bottom;
+                pointArray[4] = (1 - fillProgress) * right + (1 - fillProgress) * tanAngle * bottom;
+                pointArray[6] = (1 - fillProgress) * right - fillProgress * tanAngle * bottom;
+
+                if (pointArray[4] >= 0 && pointArray[4] <= right) {
+                    startPointX = pointArray[4];
+                    startPointY = pointArray[5];
+                } else if (pointArray[3] >= 0 && pointArray[3] <= bottom) {
+                    startPointX = pointArray[2];
+                    startPointY = pointArray[3];
+                }
+
+                if (pointArray[1] >= 0 && pointArray[1] <= bottom) {
+                    endPointX = pointArray[0];
+                    endPointY = pointArray[1];
+                } else if (pointArray[6] >= 0 && pointArray[6] <= right) {
+                    endPointX = pointArray[6];
+                    endPointY = pointArray[7];
+                }
+            } else {
+                // 角度大于270小于360度
+                pointArray[1] = fillProgress / tanAngle * right + (1 - fillProgress) * bottom;
+                pointArray[3] = (fillProgress - 1) / tanAngle * right + (1 - fillProgress) * bottom;
+                pointArray[4] = fillProgress * right + (1 - fillProgress) * tanAngle * bottom;
+                pointArray[6] = fillProgress * right - fillProgress * tanAngle * bottom;
+
+                if (pointArray[3] >= 0 && pointArray[3] <= bottom) {
+                    startPointX = pointArray[2];
+                    startPointY = pointArray[3];
+                } else if (pointArray[6] >= 0 && pointArray[6] <= right) {
+                    startPointX = pointArray[6];
+                    startPointY = pointArray[7];
+                }
+
+                if (pointArray[1] >= 0 && pointArray[1] <= bottom) {
+                    endPointX = pointArray[0];
+                    endPointY = pointArray[1];
+                } else if (pointArray[4] >= 0 && pointArray[4] <= right) {
+                    endPointX = pointArray[4];
+                    endPointY = pointArray[5];
+                }
+            }
+        }
+
+        return new float[]{startPointX, startPointY, endPointX, endPointY};
     }
 
     /**
@@ -365,6 +576,7 @@ public class MultiColorTextView extends View {
             return;
         }
         canvas.save();
+        // FIXME: 2018/9/26 这里需要换成PorterDuff以解决clipPath无法抗锯齿问题
         canvas.clipPath(contentArea);
         drawBackground(canvas);
         drawForeground(canvas);
