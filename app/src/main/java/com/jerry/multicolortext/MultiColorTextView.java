@@ -2,10 +2,13 @@ package com.jerry.multicolortext;
 
 import android.content.Context;
 import android.content.res.TypedArray;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.PaintFlagsDrawFilter;
 import android.graphics.Path;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
 import android.graphics.Rect;
 import android.support.annotation.FloatRange;
 import android.support.annotation.Nullable;
@@ -15,7 +18,6 @@ import android.util.TypedValue;
 import android.view.View;
 
 import java.util.ArrayList;
-import java.util.List;
 
 /**
  * 多颜色文字（例如上半部分红色，下半部分黄色）
@@ -42,6 +44,14 @@ public class MultiColorTextView extends View {
      * 背景画笔和前景画笔
      */
     private Paint bgPaint, fgPaint;
+    /**
+     * 用于裁剪的画笔
+     */
+    private Paint clipPaint;
+    /**
+     * 通用画笔
+     */
+    private Paint commonPaint;
 
     /**
      * 文字内容
@@ -163,7 +173,7 @@ public class MultiColorTextView extends View {
             typedArray.recycle();
         }
 
-        // 初始化两个画笔
+        // 初始化画笔
         bgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         bgPaint.setStyle(Paint.Style.FILL);
         bgPaint.setColor(bgColor);
@@ -173,6 +183,14 @@ public class MultiColorTextView extends View {
         fgPaint.setStyle(Paint.Style.FILL);
         fgPaint.setColor(fgColor);
         fgPaint.setTextSize(textSize);
+
+        clipPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        clipPaint.setStyle(Paint.Style.FILL);
+        clipPaint.setColor(Color.WHITE);
+        clipPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_IN));
+
+        commonPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        commonPaint.setColor(Color.BLACK);
     }
 
     @Override
@@ -255,7 +273,8 @@ public class MultiColorTextView extends View {
     /**
      * 简要说一下绘画思路：
      * 1. 先得到背景Path、填充和非填充Path
-     * 2. 分别将背景Path与填充Path和非填充Path相交最终得到的就是内容区域Path
+     * 2. 按照填充和非填充情况绘制出Bitmap并与对应Path相交
+     * 3. 再将两个Bitmap合并到一个Bitmap中与背景Path相交
      *
      * @param canvas 画布
      */
@@ -264,18 +283,98 @@ public class MultiColorTextView extends View {
         generateBackgroundPath();
         generateFilledAndUnfilledAreaPath();
 
-        // 将填充和非填充区域分别与背景区域做相交操作
-        filledAreaPath.op(backgroundPath, Path.Op.INTERSECT);
-        unfilledAreaPath.op(backgroundPath, Path.Op.INTERSECT);
+        canvas.save();
+
+        Bitmap contentBitmap = generateContentBitmap();
+
+        canvas.drawBitmap(contentBitmap, 0, 0, commonPaint);
+
+        canvas.restore();
+    }
+
+    /**
+     * 生成内容位图
+     *
+     * @return 内容位图
+     */
+    private Bitmap generateContentBitmap() {
+        Bitmap contentBitmap = Bitmap.createBitmap(viewRect.width(), viewRect.height(), Bitmap.Config.ARGB_8888);
+        Canvas contentCanvas = new Canvas(contentBitmap);
 
         // 填充区域颜色相反
         bgPaint.setColor(fgColor);
         fgPaint.setColor(bgColor);
-        drawContentInRect(canvas, filledAreaPath);
+        drawContentInArea(contentCanvas, filledAreaPath);
 
         bgPaint.setColor(bgColor);
         fgPaint.setColor(fgColor);
-        drawContentInRect(canvas, unfilledAreaPath);
+        drawContentInArea(contentCanvas, unfilledAreaPath);
+
+        Bitmap bgBitmap = generateBackgroundBitmap();
+        contentCanvas.drawBitmap(bgBitmap, 0, 0, clipPaint);
+
+        return contentBitmap;
+    }
+
+    /**
+     * 在给定区域绘制内容
+     *
+     * @param canvas      画布
+     * @param contentArea 内容区域
+     */
+    private void drawContentInArea(Canvas canvas, Path contentArea) {
+        Bitmap areaBitmap = Bitmap.createBitmap(viewRect.width(), viewRect.height(), Bitmap.Config.ARGB_8888);
+        Canvas areaCanvas = new Canvas(areaBitmap);
+
+        // DST
+        drawBackground(areaCanvas);
+        drawForeground(areaCanvas);
+        // 换成PorterDuff以解决clipPath无法抗锯齿问题
+        // SRC
+        Bitmap contentAreaBitmap = Bitmap.createBitmap(viewRect.width(), viewRect.height(), Bitmap.Config.ARGB_8888);
+        Canvas contentAreaCanvas = new Canvas(contentAreaBitmap);
+        contentAreaCanvas.drawPath(contentArea, bgPaint);
+
+        areaCanvas.drawBitmap(contentAreaBitmap, 0, 0, clipPaint);
+
+        canvas.drawBitmap(areaBitmap, 0, 0, commonPaint);
+    }
+
+    /**
+     * 生成背景轮廓位图
+     *
+     * @return 背景轮廓位图
+     */
+    private Bitmap generateBackgroundBitmap() {
+        Bitmap bgBitmap = Bitmap.createBitmap(viewRect.width(), viewRect.height(), Bitmap.Config.ARGB_8888);
+        Canvas bgCanvas = new Canvas(bgBitmap);
+        bgCanvas.drawPath(backgroundPath, bgPaint);
+        return bgBitmap;
+    }
+
+    /**
+     * 绘制前景
+     *
+     * @param canvas 画布
+     */
+    private void drawForeground(Canvas canvas) {
+        float textHeight = textRect.height();
+        float textWidth = textRect.width();
+
+        // 文字要去除Padding居中
+        Rect contentRect = new Rect(viewRect);
+        contentRect.set(viewRect.left + getPaddingLeft(), viewRect.top + getPaddingTop(), viewRect.right - getPaddingRight(), viewRect.bottom - getPaddingBottom());
+
+        canvas.drawText(textContent, contentRect.centerX() - textWidth / 2 - textRect.left, contentRect.centerY() + textHeight / 2 - textRect.bottom, fgPaint);
+    }
+
+    /**
+     * 绘制背景
+     *
+     * @param canvas 画布
+     */
+    private void drawBackground(Canvas canvas) {
+        canvas.drawRect(0, 0, viewRect.width(), viewRect.height(), bgPaint);
     }
 
     /**
@@ -396,6 +495,10 @@ public class MultiColorTextView extends View {
             endPointWeight += RECT_LINE_COUNT;
         }
         pointOrderList.add(START_POINT);
+        // 如果是填充0%那么起始点和终点是同一个点，且终点就在起始点之后
+        if (fillProgress == 0) {
+            pointOrderList.add(END_POINT);
+        }
         for (int i = (int) Math.ceil(startPointWeight); i < startPointWeight + RECT_LINE_COUNT; i++) {
             if (i == startPointWeight) {
                 continue;
@@ -406,6 +509,10 @@ public class MultiColorTextView extends View {
             if (i != endPointWeight) {
                 pointOrderList.add(i % RECT_LINE_COUNT);
             }
+        }
+        // 如果是填充100%那么起始点和终点是同一个点，且终点在最后
+        if (fillProgress == 1 && !pointOrderList.contains(END_POINT)) {
+            pointOrderList.add(END_POINT);
         }
         return pointOrderList;
     }
@@ -464,7 +571,7 @@ public class MultiColorTextView extends View {
             startPointY = endPointY = bottom * (1 - fillProgress);
             endPointX = 0;
         } else {
-            final float tanAngle = (float) Math.tan(calAngle);
+            final float tanAngle = (float) Math.tan(Math.toRadians(calAngle));
             // 四个可能是交点的点
             float[] pointArray = new float[8];
             pointArray[0] = 0;
@@ -496,7 +603,7 @@ public class MultiColorTextView extends View {
             } else if (calAngle > DIVIDER_QUARTER_ANGLE && calAngle < DIVIDER_HALF_ANGLE) {
                 // 角度大于90小于180度
                 pointArray[1] = (1 - fillProgress) / tanAngle * right + fillProgress * bottom;
-                pointArray[3] = -fillProgress * tanAngle * right + fillProgress * bottom;
+                pointArray[3] = -fillProgress / tanAngle * right + fillProgress * bottom;
                 pointArray[4] = (1 - fillProgress) * right + fillProgress * tanAngle * bottom;
                 pointArray[6] = (1 - fillProgress) * right + (fillProgress - 1) * tanAngle * bottom;
 
@@ -565,63 +672,6 @@ public class MultiColorTextView extends View {
         return new float[]{startPointX, startPointY, endPointX, endPointY};
     }
 
-    /**
-     * 在给定矩形区域绘制内容
-     *
-     * @param canvas      画布
-     * @param contentArea 内容区域
-     */
-    private void drawContentInRect(Canvas canvas, Path contentArea) {
-        if (contentArea.isEmpty()) {
-            return;
-        }
-        canvas.save();
-        // FIXME: 2018/9/26 这里需要换成PorterDuff以解决clipPath无法抗锯齿问题
-        canvas.clipPath(contentArea);
-        drawBackground(canvas);
-        drawForeground(canvas);
-        canvas.restore();
-    }
-
-    /**
-     * 绘制前景
-     *
-     * @param canvas 画布
-     */
-    private void drawForeground(Canvas canvas) {
-        float textHeight = textRect.height();
-        float textWidth = textRect.width();
-
-        // 文字要去除Padding居中
-        Rect contentRect = new Rect(viewRect);
-        contentRect.set(viewRect.left + getPaddingLeft(), viewRect.top + getPaddingTop(), viewRect.right - getPaddingRight(), viewRect.bottom - getPaddingBottom());
-
-        canvas.drawText(textContent, contentRect.centerX() - textWidth / 2 - textRect.left, contentRect.centerY() + textHeight / 2 - textRect.bottom, fgPaint);
-    }
-
-    /**
-     * 绘制背景
-     *
-     * @param canvas 画布
-     */
-    private void drawBackground(Canvas canvas) {
-        switch (shapeType) {
-            case SHAPE_TYPE_CIRCLE: {
-                canvas.drawCircle(viewRect.centerX(), viewRect.centerY(), Math.min(viewRect.width(), viewRect.height()) / 2.0f, bgPaint);
-                break;
-            }
-            case SHAPE_TYPE_ROUND_RECT: {
-                canvas.drawRoundRect(viewRect.left, viewRect.top, viewRect.right, viewRect.bottom, roundCornerRadius, roundCornerRadius, bgPaint);
-                break;
-            }
-            case SHAPE_TYPE_RECT:
-            default: {
-                canvas.drawRect(0, 0, viewRect.width(), viewRect.height(), bgPaint);
-                break;
-            }
-        }
-    }
-
     public String getTextContent() {
         return textContent;
     }
@@ -683,6 +733,15 @@ public class MultiColorTextView extends View {
 
     public void setFillProgress(float fillProgress) {
         this.fillProgress = fillProgress;
+        invalidate();
+    }
+
+    public int getDividerAngle() {
+        return dividerAngle;
+    }
+
+    public void setDividerAngle(int dividerAngle) {
+        this.dividerAngle = dividerAngle;
         invalidate();
     }
 }

@@ -32,6 +32,10 @@ public class MainActivity extends AppCompatActivity {
     SeekBar sbFillProgressController;
     @BindView(R.id.tv_fill_progress_percent)
     TextView tvFillProgressPercent;
+    @BindView(R.id.sb_divider_angle_controller)
+    SeekBar sbDividerAngleController;
+    @BindView(R.id.tv_divider_angle_value)
+    TextView tvDividerAngleValue;
 
     TypeBean[] dividerTypeArray;
     TypeBean[] shapeTypeArray;
@@ -61,6 +65,12 @@ public class MainActivity extends AppCompatActivity {
         spinnerShapeType.setAdapter(shapeAdapter);
 
         mctvShow.setFillProgress(sbFillProgressController.getProgress() * 1.0f / sbFillProgressController.getMax());
+
+        sbDividerAngleController.setProgress(Math.min(Math.round(mctvShow.getDividerAngle() / 360.0f * sbDividerAngleController.getMax()), sbDividerAngleController.getMax()));
+        tvDividerAngleValue.setText(getApplicationContext().getString(R.string.angle, String.valueOf(sbDividerAngleController.getProgress())));
+
+        sbFillProgressController.setProgress(Math.min(Math.round(mctvShow.getFillProgress() * sbFillProgressController.getMax()), sbFillProgressController.getMax()));
+        tvFillProgressPercent.setText(getApplicationContext().getString(R.string.percent, String.valueOf(Math.min(Math.round(mctvShow.getFillProgress() * 100), 100))));
     }
 
     private void initListener() {
@@ -95,6 +105,23 @@ public class MainActivity extends AppCompatActivity {
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 tvFillProgressPercent.setText(getApplicationContext().getString(R.string.percent, String.valueOf(Math.min(Math.round(progress * 1.0f / sbFillProgressController.getMax() * 100), 100))));
                 mctvShow.setFillProgress(progress * 1.0f / sbFillProgressController.getMax());
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+
+            }
+        });
+        sbDividerAngleController.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                tvDividerAngleValue.setText(getApplicationContext().getString(R.string.angle, String.valueOf(Math.min(Math.round(progress * 1.0f / sbDividerAngleController.getMax() * 360), 360))));
+                mctvShow.setDividerAngle(Math.min(Math.round(progress * 1.0f / sbDividerAngleController.getMax() * 360), 360));
             }
 
             @Override
