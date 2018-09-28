@@ -14,6 +14,7 @@ import android.support.annotation.FloatRange;
 import android.support.annotation.Nullable;
 import android.support.v4.content.ContextCompat;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.View;
 
@@ -38,7 +39,7 @@ public class MultiColorTextView extends View {
     private static final int RECT_LINE_COUNT = 4;
     private static final int DIVIDER_ZERO_ANGLE = 0, DIVIDER_QUARTER_ANGLE = 90, DIVIDER_HALF_ANGLE = 180, DIVIDER_THREE_QUARTER_ANGLE = 270, DIVIDER_ENTIRE_ANGLE = 360;
     public static final int SHAPE_TYPE_DEFAULT = 0, SHAPE_TYPE_RECT = 1, SHAPE_TYPE_CIRCLE = 2, SHAPE_TYPE_ROUND_RECT = 3;
-    public static final int DIVIDER_TYPE_DEFAULT = 0, DIVIDER_TYPE_LINE = 1, DIVIDER_TYPE_BESSEL = 2;
+    public static final int DIVIDER_TYPE_DEFAULT = 0, DIVIDER_TYPE_LINE = 1, DIVIDER_TYPE_BESSEL = 2, DIVIDER_TYPE_WAVE = 3;
 
     /**
      * 背景画笔和前景画笔
@@ -470,6 +471,27 @@ public class MultiColorTextView extends View {
 
         switch (dividerType) {
             case DIVIDER_TYPE_BESSEL: {
+                float controlPointX = (pointArray[0] + pointArray[2]) / 2 + (pointArray[1] - pointArray[3]) / 4;
+                float controlPointY = (pointArray[1] + pointArray[3]) / 2 + (pointArray[2] - pointArray[0]) / 4;
+                filledAreaPath.quadTo(controlPointX, controlPointY, pointArray[0], pointArray[1]);
+                unfilledAreaPath.quadTo(controlPointX, controlPointY, pointArray[2], pointArray[3]);
+                filledAreaPath.close();
+                unfilledAreaPath.close();
+                break;
+            }
+            case DIVIDER_TYPE_WAVE: {
+                float centerPointX = (pointArray[0] + pointArray[2]) / 2, centerPointY = (pointArray[1] + pointArray[3]) / 2;
+                float controlPoint1X = (pointArray[0] + centerPointX) / 2 + (pointArray[1] - pointArray[3]) / 8;
+                float controlPoint1Y = (pointArray[1] + centerPointY) / 2 + (pointArray[2] - pointArray[0]) / 8;
+                float controlPoint2X = (pointArray[2] + centerPointX) / 2 + (pointArray[3] - pointArray[1]) / 8;
+                float controlPoint2Y = (pointArray[3] + centerPointY) / 2 + (pointArray[0] - pointArray[2]) / 8;
+
+                unfilledAreaPath.quadTo(controlPoint1X, controlPoint1Y, centerPointX, centerPointY);
+                unfilledAreaPath.quadTo(controlPoint2X, controlPoint2Y, pointArray[2], pointArray[3]);
+                filledAreaPath.quadTo(controlPoint2X, controlPoint2Y, centerPointX, centerPointY);
+                filledAreaPath.quadTo(controlPoint1X, controlPoint1Y, pointArray[0], pointArray[1]);
+                filledAreaPath.close();
+                unfilledAreaPath.close();
                 break;
             }
             case DIVIDER_TYPE_LINE:

@@ -51,9 +51,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initData() {
-        dividerTypeArray = new TypeBean[2];
+        dividerTypeArray = new TypeBean[3];
         dividerTypeArray[0] = new TypeBean("直线", MultiColorTextView.DIVIDER_TYPE_LINE);
         dividerTypeArray[1] = new TypeBean("贝塞尔曲线", MultiColorTextView.DIVIDER_TYPE_BESSEL);
+        dividerTypeArray[2] = new TypeBean("水波纹", MultiColorTextView.DIVIDER_TYPE_WAVE);
         TypeSpinnerAdapter orientationAdapter = new TypeSpinnerAdapter(this, dividerTypeArray);
         spinnerDividerType.setAdapter(orientationAdapter);
 
@@ -63,8 +64,6 @@ public class MainActivity extends AppCompatActivity {
         shapeTypeArray[2] = new TypeBean("圆角矩形", MultiColorTextView.SHAPE_TYPE_ROUND_RECT);
         TypeSpinnerAdapter shapeAdapter = new TypeSpinnerAdapter(this, shapeTypeArray);
         spinnerShapeType.setAdapter(shapeAdapter);
-
-        mctvShow.setFillProgress(sbFillProgressController.getProgress() * 1.0f / sbFillProgressController.getMax());
 
         sbDividerAngleController.setProgress(Math.min(Math.round(mctvShow.getDividerAngle() / 360.0f * sbDividerAngleController.getMax()), sbDividerAngleController.getMax()));
         tvDividerAngleValue.setText(getApplicationContext().getString(R.string.angle, String.valueOf(sbDividerAngleController.getProgress())));
